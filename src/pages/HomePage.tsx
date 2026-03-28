@@ -17,7 +17,8 @@ interface Rect {
 }
 
 export const HomePage: React.FC = () => {
-  const [image, setImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageURL, setImageURL] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [cropMode, setCropMode] = useState<CropMode>('3x3');
   const [cropRect, setCropRect] = useState<Rect>({ x: 0, y: 0, width: 0, height: 0 });
@@ -25,6 +26,23 @@ export const HomePage: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const cropRectRef = useRef<Rect>(cropRect);
+  const pendingAnimationFrame = useRef<number | null>(null);
+
+  useEffect(() => {
+    cropRectRef.current = cropRect;
+  }, [cropRect]);
+
+  useEffect(() => {
+    return () => {
+      if (imageURL) {
+        URL.revokeObjectURL(imageURL);
+      }
+      if (pendingAnimationFrame.current !== null) {
+        window.cancelAnimationFrame(pendingAnimationFrame.current);
+      }
+    };
+  }, [imageURL]);
 
   // 初始化裁剪框
   const calculateInitialRect = useCallback((imgWidth: number, imgHeight: number, mode: CropMode, currentRect?: Rect) => {
@@ -63,7 +81,7 @@ export const HomePage: React.FC = () => {
     };
   }, []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
     let file: File | undefined;
     if ('files' in e.target && e.target.files) {
       file = e.target.files[0];
@@ -76,18 +94,32 @@ export const HomePage: React.FC = () => {
         toast.error('请上传 JPG、PNG 或 WebP 格式的图片');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          setImage(result);
-          setImageSize({ width: img.width, height: img.height });
-          setCropRect(calculateInitialRect(img.width, img.height, cropMode));
-        };
-        img.src = result;
-      };
-      reader.readAsDataURL(file);
+
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('请上传小于 50MB 的图片');
+        return;
+      }
+
+      if (imageURL) {
+        URL.revokeObjectURL(imageURL);
+      }
+
+      const newUrl = URL.createObjectURL(file);
+      setImageFile(file);
+      setImageURL(newUrl);
+
+      try {
+        const bitmap = await createImageBitmap(file);
+        setImageSize({ width: bitmap.width, height: bitmap.height });
+        setCropRect(calculateInitialRect(bitmap.width, bitmap.height, cropMode));
+        bitmap.close();
+      } catch (error) {
+        console.error(error);
+        toast.error('图片解码失败，请更换图片再试');
+        URL.revokeObjectURL(newUrl);
+        setImageFile(null);
+        setImageURL(null);
+      }
     }
   };
 
@@ -98,26 +130,35 @@ export const HomePage: React.FC = () => {
     }
   };
 
-  // 拖动和缩放逻辑
+  // 拖动和缩放逻辑（节流 setState）
   const handleInteraction = (e: React.MouseEvent | React.TouchEvent, type: 'move' | 'resize') => {
     if (!imageRef.current) return;
 
+    e.preventDefault();
     const isTouch = 'touches' in e;
-    const clientX = isTouch ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = isTouch ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-    const startX = clientX;
-    const startY = clientY;
-    const initialRect = { ...cropRect };
+    const startX = isTouch ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const startY = isTouch ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const initialRect = { ...cropRectRef.current };
     const rect = imageRef.current.getBoundingClientRect();
     const scale = imageSize.width / rect.width;
+
+    const scheduleUpdate = (nextRect: Rect) => {
+      cropRectRef.current = nextRect;
+      if (pendingAnimationFrame.current === null) {
+        pendingAnimationFrame.current = window.requestAnimationFrame(() => {
+          setCropRect(cropRectRef.current);
+          pendingAnimationFrame.current = null;
+        });
+      }
+    };
 
     const onMove = (moveEvent: MouseEvent | TouchEvent) => {
       const mX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
       const mY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
-      
       const deltaX = (mX - startX) * scale;
       const deltaY = (mY - startY) * scale;
+
+      let nextRect = { ...initialRect };
 
       if (type === 'move') {
         let newX = initialRect.x + deltaX;
@@ -126,17 +167,16 @@ export const HomePage: React.FC = () => {
         newX = Math.max(0, Math.min(newX, imageSize.width - initialRect.width));
         newY = Math.max(0, Math.min(newY, imageSize.height - initialRect.height));
 
-        setCropRect((prev) => ({ ...prev, x: newX, y: newY }));
-      } else if (type === 'resize') {
+        nextRect.x = newX;
+        nextRect.y = newY;
+      } else {
         const ratio = cropMode === '3x3' ? 1 : 3 / 2;
         let newWidth = initialRect.width + deltaX;
-        
-        // 限制最小尺寸
+
         if (newWidth < 100) newWidth = 100;
 
         let newHeight = newWidth / ratio;
 
-        // 边界限制：如果宽度或高度超出，则按比例缩小
         if (initialRect.x + newWidth > imageSize.width) {
           newWidth = imageSize.width - initialRect.x;
           newHeight = newWidth / ratio;
@@ -146,11 +186,19 @@ export const HomePage: React.FC = () => {
           newWidth = newHeight * ratio;
         }
 
-        setCropRect((prev) => ({ ...prev, width: newWidth, height: newHeight }));
+        nextRect.width = newWidth;
+        nextRect.height = newHeight;
       }
+
+      scheduleUpdate(nextRect);
     };
 
     const onEnd = () => {
+      if (pendingAnimationFrame.current !== null) {
+        window.cancelAnimationFrame(pendingAnimationFrame.current);
+        pendingAnimationFrame.current = null;
+      }
+      setCropRect(cropRectRef.current);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onEnd);
       document.removeEventListener('touchmove', onMove);
@@ -165,7 +213,7 @@ export const HomePage: React.FC = () => {
 
   // 生成并下载
   const handleDownload = async () => {
-    if (!image || !imageSize.width) {
+    if (!imageURL || !imageSize.width) {
       toast.error('请先上传一张图片');
       return;
     }
@@ -177,25 +225,30 @@ export const HomePage: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not get canvas context');
 
-      const img = new Image();
-      img.src = image;
-      await new Promise((resolve) => { img.onload = resolve; });
-
       const cols = 3;
       const rows = cropMode === '3x3' ? 3 : 2;
-      
-      // 使用原图质量切割
-      const pieceWidth = cropRect.width / cols;
-      const pieceHeight = cropRect.height / rows;
+      const pieceWidth = Math.max(1, cropRect.width / cols);
+      const pieceHeight = Math.max(1, cropRect.height / rows);
 
       canvas.width = pieceWidth;
       canvas.height = pieceHeight;
+
+      // 通过 createImageBitmap 只解码一次
+      const bitmapSource = imageRef.current
+        ? await createImageBitmap(imageRef.current)
+        : imageFile
+        ? await createImageBitmap(imageFile)
+        : null;
+
+      if (!bitmapSource) {
+        throw new Error('图片资源不可用');
+      }
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           ctx.clearRect(0, 0, pieceWidth, pieceHeight);
           ctx.drawImage(
-            img,
+            bitmapSource,
             cropRect.x + c * pieceWidth,
             cropRect.y + r * pieceHeight,
             pieceWidth,
@@ -205,13 +258,18 @@ export const HomePage: React.FC = () => {
             pieceWidth,
             pieceHeight
           );
-          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1.0));
+
+          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 0.9));
           if (blob) {
             zip.file(`subimg_${r + 1}_${c + 1}.png`, blob);
           }
+
+          // 让 UI 有机会更新，避免长时间卡顿
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
 
+      bitmapSource.close();
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, `切图助手_${Date.now()}.zip`);
       toast.success('导出成功，请查看下载列表');
@@ -235,8 +293,21 @@ export const HomePage: React.FC = () => {
             <span className="font-semibold tracking-tight text-lg">切图助手 - B站<a href = "https://space.bilibili.com/507925563">@Kira雨辰</a></span>
           </div>
           <div className="flex items-center gap-4">
-            {image && (
-              <Button variant="ghost" size="sm" onClick={() => setImage(null)} className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full">
+            {imageURL && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (imageURL) {
+                    URL.revokeObjectURL(imageURL);
+                  }
+                  setImageFile(null);
+                  setImageURL(null);
+                  setImageSize({ width: 0, height: 0 });
+                  setCropRect({ x: 0, y: 0, width: 0, height: 0 });
+                }}
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full"
+              >
                 <Trash2 className="w-4 h-4 mr-1.5" />
                 清除
               </Button>
@@ -253,7 +324,7 @@ export const HomePage: React.FC = () => {
             <p className="text-black/50">上传一张图片，调整裁剪区域，准备分割。</p>
           </div>
 
-          {!image ? (
+          {!imageURL ? (
             <div 
               className="aspect-video w-full border-2 border-dashed border-black/10 rounded-3xl flex flex-col items-center justify-center gap-4 bg-white hover:bg-black/[0.01] hover:border-black/20 transition-all cursor-pointer group"
               onClick={() => document.getElementById('file-upload')?.click()}
@@ -279,7 +350,7 @@ export const HomePage: React.FC = () => {
                   <div className="relative inline-block m-8">
                     <img
                       ref={imageRef}
-                      src={image}
+                      src={imageURL ?? undefined}
                       alt="Source"
                       className="max-w-full max-h-[60vh] block object-contain select-none shadow-sm"
                     />
@@ -399,11 +470,11 @@ export const HomePage: React.FC = () => {
 
                   return (
                     <div key={i} className="bg-neutral-50 overflow-hidden relative aspect-square">
-                      {image && (
+                      {imageURL && (
                         <div
                           className="absolute inset-0 bg-no-repeat"
                           style={{
-                            backgroundImage: `url(${image})`,
+                            backgroundImage: imageURL ? `url(${imageURL})` : undefined,
                             backgroundSize: `${bWidth}% ${bHeight}%`,
                             backgroundPosition: `${bx}% ${by}%`,
                           }}
@@ -417,7 +488,7 @@ export const HomePage: React.FC = () => {
               <div className="space-y-4">
                 <Button 
                   className="w-full h-14 rounded-2xl text-lg font-bold bg-black hover:bg-black/90 text-white shadow-xl shadow-black/10 transition-all active:scale-[0.98] disabled:bg-black/20"
-                  disabled={!image || isProcessing}
+                  disabled={!imageURL || isProcessing}
                   onClick={handleDownload}
                 >
                   {isProcessing ? (
