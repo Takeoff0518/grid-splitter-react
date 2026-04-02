@@ -504,16 +504,18 @@ export const HomePage: React.FC = () => {
                     </span>
                   )}
                 </Button>
-                {imageURL && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearImage}
-                    className="w-full h-14 rounded-2xl text-lg font-bold bg-white border-2 border-red-500 text-red-500 shadow-xl shadow-black/10 transition-all active:scale-[0.98] disabled:bg-black/5 hover:bg-red-50"
+                
+                <Button
+                  variant="outline"
+                  onClick={clearImage}
+                  disabled={!imageURL || isProcessing}
+                  className="w-full h-14 rounded-2xl text-lg font-bold bg-white border-2 border-red-500 text-red-500 shadow-xl shadow-black/10 transition-all active:scale-[0.98] disabled:bg-black/5 hover:bg-red-50"
                   >
-                    <Trash2 className="w-4 h-4 mr-1" /> 清除已上传的图片
-                  </Button>
-                )}
+                  <span className="flex items-center gap-2">
+                  <Trash2 className="w-5 h-5" /> 清除已上传的图片
+                  </span>
+                </Button>
+                
                 <div className="p-4 bg-neutral-50 rounded-2xl border border-black/[0.03]">
                    <p className="text-xs text-black/40 leading-relaxed">
                      点击按钮将自动按原图比例切割，并生成 ZIP 压缩包下载。文件名将按行列自动命名。
