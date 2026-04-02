@@ -313,25 +313,6 @@ export const HomePage: React.FC = () => {
               <span className="text-black/30">·</span>
               <a href="https://github.com/Takeoff0518/grid-splitter-react" target="_blank" rel="noreferrer" className="hover:text-black">GitHub</a>
             </div>
-            {imageURL && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (imageURL) {
-                    URL.revokeObjectURL(imageURL);
-                  }
-                  setImageFile(null);
-                  setImageURL(null);
-                  setImageSize({ width: 0, height: 0 });
-                  setCropRect({ x: 0, y: 0, width: 0, height: 0 });
-                }}
-                className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full"
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                清除
-              </Button>
-            )}
           </div>
         </div>
       </nav>
@@ -462,16 +443,6 @@ export const HomePage: React.FC = () => {
           <div className="space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">预览</h2>
             <p className="text-black/50">查看分割后的实际效果。</p>
-            {imageURL && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearImage}
-                className="mt-2 text-red-500 hover:text-red-600"
-              >
-                <Trash2 className="w-4 h-4 mr-1" /> 清除已上传的图片
-              </Button>
-            )}
           </div>
 
           <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.08)] rounded-3xl overflow-hidden bg-white p-6">
@@ -533,6 +504,16 @@ export const HomePage: React.FC = () => {
                     </span>
                   )}
                 </Button>
+                {imageURL && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearImage}
+                    className="w-full h-14 rounded-2xl text-lg font-bold bg-white border-2 border-red-500 text-red-500 shadow-xl shadow-black/10 transition-all active:scale-[0.98] disabled:bg-black/5 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" /> 清除已上传的图片
+                  </Button>
+                )}
                 <div className="p-4 bg-neutral-50 rounded-2xl border border-black/[0.03]">
                    <p className="text-xs text-black/40 leading-relaxed">
                      点击按钮将自动按原图比例切割，并生成 ZIP 压缩包下载。文件名将按行列自动命名。
