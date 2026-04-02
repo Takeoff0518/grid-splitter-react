@@ -293,6 +293,11 @@ export const HomePage: React.FC = () => {
             <span className="font-semibold tracking-tight text-lg">切图助手 - B站<a href = "https://space.bilibili.com/507925563">@Kira雨辰</a></span>
           </div>
           <div className="flex items-center gap-4">
+            <img
+              src="https://hitscounter.dev/api/hit?url=grid-splitter.tbpdt.top&label=&icon=eye&color=%23198754&message=&style=flat&tz=Asia%2FShanghai"
+              alt="访问计数"
+              className="h-6"
+            />
             {imageURL && (
               <Button
                 variant="ghost"
