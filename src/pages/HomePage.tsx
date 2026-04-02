@@ -303,11 +303,6 @@ export const HomePage: React.FC = () => {
             <span className="font-semibold tracking-tight text-lg">切图助手</span>
           </div>
           <div className="flex items-center gap-4">
-            <img
-              src="https://hitscounter.dev/api/hit?url=grid-splitter.tbpdt.top&label=&icon=eye&color=%23198754&message=&style=flat&tz=Asia%2FShanghai"
-              alt="访问计数"
-              className="h-6"
-            />
             <div className="flex items-center gap-2 text-xs text-black/60">
               <a href="https://space.bilibili.com/507925563" target="_blank" rel="noreferrer" className="hover:text-black">B站@Kira雨辰</a>
               <span className="text-black/30">·</span>
@@ -546,6 +541,19 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* 底部页脚 */}
+      <footer className="w-full border-t border-black/[0.05] bg-white/80 backdrop-blur-xl py-8 mt-auto">
+        <div className="w-full max-w-6xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <img
+              src="https://hitscounter.dev/api/hit?url=grid-splitter.tbpdt.top&label=&icon=eye&color=%23198754&message=&style=flat&tz=Asia%2FShanghai"
+              alt="访问计数"
+              className="h-6"
+            />
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
