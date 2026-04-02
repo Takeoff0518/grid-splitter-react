@@ -211,6 +211,16 @@ export const HomePage: React.FC = () => {
     document.addEventListener('touchend', onEnd);
   };
 
+  const clearImage = useCallback(() => {
+    if (imageURL) {
+      URL.revokeObjectURL(imageURL);
+    }
+    setImageFile(null);
+    setImageURL(null);
+    setImageSize({ width: 0, height: 0 });
+    setCropRect({ x: 0, y: 0, width: 0, height: 0 });
+  }, [imageURL]);
+
   // 生成并下载
   const handleDownload = async () => {
     if (!imageURL || !imageSize.width) {
@@ -290,7 +300,7 @@ export const HomePage: React.FC = () => {
             <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
               <Grid3X3 className="w-5 h-5 text-white" />
             </div>
-            <span className="font-semibold tracking-tight text-lg">切图助手 - B站<a href = "https://space.bilibili.com/507925563">@Kira雨辰</a></span>
+            <span className="font-semibold tracking-tight text-lg">切图助手</span>
           </div>
           <div className="flex items-center gap-4">
             <img
@@ -298,6 +308,11 @@ export const HomePage: React.FC = () => {
               alt="访问计数"
               className="h-6"
             />
+            <div className="flex items-center gap-2 text-xs text-black/60">
+              <a href="https://space.bilibili.com/507925563" target="_blank" rel="noreferrer" className="hover:text-black">B站@Kira雨辰</a>
+              <span className="text-black/30">·</span>
+              <a href="https://github.com/Takeoff0518/grid-splitter-react" target="_blank" rel="noreferrer" className="hover:text-black">GitHub</a>
+            </div>
             {imageURL && (
               <Button
                 variant="ghost"
@@ -447,6 +462,16 @@ export const HomePage: React.FC = () => {
           <div className="space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">预览</h2>
             <p className="text-black/50">查看分割后的实际效果。</p>
+            {imageURL && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearImage}
+                className="mt-2 text-red-500 hover:text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> 清除已上传的图片
+              </Button>
+            )}
           </div>
 
           <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.08)] rounded-3xl overflow-hidden bg-white p-6">
