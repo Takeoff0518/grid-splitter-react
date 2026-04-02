@@ -406,7 +406,7 @@ export const HomePage: React.FC = () => {
                       className="rounded-xl px-4 h-9"
                     >
                       <Grid3X3 className="w-4 h-4 mr-2" />
-                      3x3
+                      3×3
                     </Button>
                     <Button 
                       variant={cropMode === '3x2' ? 'default' : 'ghost'} 
@@ -415,7 +415,7 @@ export const HomePage: React.FC = () => {
                       className="rounded-xl px-4 h-9"
                     >
                       <Rows2 className="w-4 h-4 mr-2" />
-                      3x2
+                      3×2
                     </Button>
                     <Button 
                       variant={cropMode === '2x2' ? 'default' : 'ghost'} 
@@ -424,7 +424,7 @@ export const HomePage: React.FC = () => {
                       className="rounded-xl px-4 h-9"
                     >
                       <Grid2X2 className="w-4 h-4 mr-2" />
-                      2x2
+                      2×2
                     </Button>
                   </div>
                 </div>
@@ -528,7 +528,7 @@ export const HomePage: React.FC = () => {
             <div className="space-y-2">
               {[
                 "上传你需要切割的图片",
-                "选择 3x3、3x2 或 2x2 模式",
+                "选择裁剪模式",
                 "在左侧预览中调整裁剪区域",
                 "点击导出按钮获取所有子图"
               ].map((step, i) => (
