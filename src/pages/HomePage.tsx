@@ -95,10 +95,10 @@ export const HomePage: React.FC = () => {
         return;
       }
 
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error('请上传小于 50MB 的图片');
-        return;
-      }
+      // if (file.size > 50 * 1024 * 1024) {
+      //   toast.error('请上传小于 50MB 的图片');
+      //   return;
+      // }
 
       if (imageURL) {
         URL.revokeObjectURL(imageURL);
