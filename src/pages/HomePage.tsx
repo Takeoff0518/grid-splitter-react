@@ -1,13 +1,13 @@
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
-import { ChevronRight, Columns2, Download, Grid3X3, Maximize, Move, Trash2, Upload } from 'lucide-react';
+import { ChevronRight, Columns2, Columns3, Download, Grid2X2, Grid3X3, Maximize, Move, Rows2, Rows3, Trash2, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-type CropMode = '3x3' | '3x2';
+type CropMode = '3x3' | '3x2' | '2x2';
 
 interface Rect {
   x: number;
@@ -46,7 +46,7 @@ export const HomePage: React.FC = () => {
 
   // 初始化裁剪框
   const calculateInitialRect = useCallback((imgWidth: number, imgHeight: number, mode: CropMode, currentRect?: Rect) => {
-    const ratio = mode === '3x3' ? 1 : 3 / 2;
+    const ratio = mode === '3x2' ? 3 / 2 : 1;
     let width, height;
 
     if (imgWidth / imgHeight > ratio) {
@@ -170,7 +170,7 @@ export const HomePage: React.FC = () => {
         nextRect.x = newX;
         nextRect.y = newY;
       } else {
-        const ratio = cropMode === '3x3' ? 1 : 3 / 2;
+        const ratio = cropMode === '3x2' ? 3 / 2 : 1;
         let newWidth = initialRect.width + deltaX;
 
         if (newWidth < 100) newWidth = 100;
@@ -235,7 +235,7 @@ export const HomePage: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not get canvas context');
 
-      const cols = 3;
+      const cols = cropMode === '3x3' ? 3 : cropMode === '3x2' ? 3 : 2;
       const rows = cropMode === '3x3' ? 3 : 2;
       const pieceWidth = Math.max(1, cropRect.width / cols);
       const pieceHeight = Math.max(1, cropRect.height / rows);
@@ -290,6 +290,10 @@ export const HomePage: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
+  const colCount = cropMode === '3x3' ? 3 : cropMode === '3x2' ? 3 : 2;
+  const rowCount = cropMode === '3x3' ? 3 : 2;
+  const previewCount = colCount * rowCount;
 
   return (
     <div className="min-h-screen bg-[#FBFBFD] text-[#1D1D1F] selection:bg-blue-100 flex flex-col items-center">
@@ -364,29 +368,20 @@ export const HomePage: React.FC = () => {
                       onTouchStart={(e) => handleInteraction(e, 'move')}
                     >
                       {/* 辅助线 */}
-                      <div className="absolute inset-0 grid grid-rows-3 grid-cols-3 pointer-events-none opacity-40">
-                        <div className="border-b border-r border-white/50" />
-                        <div className="border-b border-r border-white/50" />
-                        <div className="border-b border-white/50" />
-                        <div className="border-b border-r border-white/50" />
-                        <div className="border-b border-r border-white/50" />
-                        <div className="border-b border-white/50" />
-                        <div className="border-r border-white/50" />
-                        <div className="border-r border-white/50" />
-                        <div />
+                      <div className={`absolute inset-0 grid ${rowCount === 3 ? 'grid-rows-3' : 'grid-rows-2'} ${colCount === 3 ? 'grid-cols-3' : 'grid-cols-2'} pointer-events-none opacity-40`}>
+                        {Array.from({ length: rowCount * colCount }).map((_, idx) => {
+                          const row = Math.floor(idx / colCount);
+                          const col = idx % colCount;
+                          const isLastRow = row === rowCount - 1;
+                          const isLastCol = col === colCount - 1;
+                          return (
+                            <div
+                              key={idx}
+                              className={`${isLastRow ? '' : 'border-b-2'} ${isLastCol ? '' : 'border-r-2'} border-white`}
+                            />
+                          );
+                        })}
                       </div>
-
-                      {/* 模式特定的网格显示 (针对 3x2 模式覆盖) */}
-                      {cropMode === '3x2' && (
-                        <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 pointer-events-none bg-black/5">
-                           <div className="border-r border-b border-white" />
-                           <div className="border-r border-b border-white" />
-                           <div className="border-b border-white" />
-                           <div className="border-r border-white" />
-                           <div className="border-r border-white" />
-                           <div />
-                        </div>
-                      )}
 
                       {/* 缩放手柄 */}
                       <div 
@@ -411,7 +406,7 @@ export const HomePage: React.FC = () => {
                       className="rounded-xl px-4 h-9"
                     >
                       <Grid3X3 className="w-4 h-4 mr-2" />
-                      3x3 模式
+                      3x3
                     </Button>
                     <Button 
                       variant={cropMode === '3x2' ? 'default' : 'ghost'} 
@@ -419,8 +414,17 @@ export const HomePage: React.FC = () => {
                       onClick={() => handleModeChange('3x2')}
                       className="rounded-xl px-4 h-9"
                     >
-                      <Columns2 className="w-4 h-4 mr-2" />
-                      3x2 模式
+                      <Rows2 className="w-4 h-4 mr-2" />
+                      3x2
+                    </Button>
+                    <Button 
+                      variant={cropMode === '2x2' ? 'default' : 'ghost'} 
+                      size="sm" 
+                      onClick={() => handleModeChange('2x2')}
+                      className="rounded-xl px-4 h-9"
+                    >
+                      <Grid2X2 className="w-4 h-4 mr-2" />
+                      2x2
                     </Button>
                   </div>
                 </div>
@@ -445,13 +449,11 @@ export const HomePage: React.FC = () => {
               <div 
                 className={cn(
                   "grid gap-0.5 bg-neutral-100 p-0.5 overflow-hidden",
-                  cropMode === '3x3' ? "aspect-square" : "aspect-[3/2]",
-                  "grid-cols-3"
+                  cropMode === '3x3' || cropMode === '2x2' ? "aspect-square" : "aspect-[3/2]",
+                  cropMode === '3x3' ? "grid-cols-3" : cropMode === '3x2' ? "grid-cols-3" : "grid-cols-2"
                 )}
               >
-                {Array.from({ length: cropMode === '3x3' ? 9 : 6 }).map((_, i) => {
-                  const colCount = 3;
-                  const rowCount = cropMode === '3x3' ? 3 : 2;
+                {Array.from({ length: previewCount }).map((_, i) => {
                   const col = i % colCount;
                   const row = Math.floor(i / colCount);
                   const pieceWidth = cropRect.width / colCount;
@@ -513,7 +515,7 @@ export const HomePage: React.FC = () => {
                 
                 <div className="p-4 bg-neutral-50 rounded-2xl border border-black/[0.03]">
                    <p className="text-xs text-black/40 leading-relaxed">
-                     点击按钮将自动按原图比例切割，并生成 ZIP 压缩包下载。文件名将按行列自动命名。
+                     点击按钮将自动按选定比例切割，并生成 ZIP 压缩包下载。文件名将按行列自动命名。
                    </p>
                 </div>
               </div>
@@ -526,7 +528,7 @@ export const HomePage: React.FC = () => {
             <div className="space-y-2">
               {[
                 "上传你需要切割的图片",
-                "选择 3x3 (九宫) 或 3x2 (六宫) 模式",
+                "选择 3x3、3x2 或 2x2 模式",
                 "在左侧预览中调整裁剪区域",
                 "点击导出按钮获取所有子图"
               ].map((step, i) => (
